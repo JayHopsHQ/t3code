@@ -243,7 +243,7 @@ export function deferWorkHistoryRows<Row extends HistoryRow>(
             snapshotSequence: 0,
             sourceThreadId: last.sourceThreadId,
             sourceItemId: last.sourceItemId,
-            position: last.position,
+            position: last.item.ordinal ?? last.position,
             inclusive: true,
           }),
           itemCount: group.length,
@@ -263,7 +263,7 @@ export function selectDeferredWorkPage<Row extends HistoryRow>(input: {
   readonly rowEncodedBytes?: ((row: Row) => number) | undefined;
 }): SelectTimelinePageResult<Row> {
   const cursor = decodeThreadHistoryCursor(input.cursor);
-  const end = findCursorIndex(input.items, cursor) + (cursor.inclusive ? 1 : 0);
+  const end = findCursorEndIndex(input.items, cursor);
   const start = input.items.findIndex((row) => row.sourceItemId === input.throughEntryId);
   if (start < 0 || start >= end) throw new InvalidThreadHistoryCursorError();
   const anchor = input.items[start]!;
@@ -393,17 +393,22 @@ export function selectRecentTimelineWindow(input: {
   });
 }
 
-function findCursorIndex(
-  items: ReadonlyArray<Pick<HistoryRow, "sourceThreadId" | "sourceItemId" | "position">>,
+function findCursorEndIndex(
+  items: ReadonlyArray<HistoryRow>,
   cursor: ThreadHistoryCursorPayload,
 ): number {
   const byIdentity = items.findIndex(
     (row) => String(row.sourceThreadId) === cursor.st && String(row.sourceItemId) === cursor.si,
   );
   if (byIdentity !== -1) {
-    return byIdentity;
+    return byIdentity + (cursor.inclusive ? 1 : 0);
   }
-  const byPosition = items.findIndex((row) => row.position >= cursor.p);
+  // Inclusive deferred cursors carry source ordinals; ordinary cursors carry visible positions.
+  const byPosition = items.findIndex((row) =>
+    cursor.inclusive
+      ? String(row.sourceThreadId) === cursor.st && (row.item.ordinal ?? row.position) > cursor.p
+      : row.position >= cursor.p,
+  );
   return byPosition === -1 ? items.length : byPosition;
 }
 
@@ -423,7 +428,7 @@ export function olderHistoryPagePolicy<Row extends HistoryRow>(input: {
     maxUserTurns: OLDER_THREAD_USER_TURN_LIMIT,
   };
   if (input.throughEntryId === undefined) return policy;
-  const anchorIndex = findCursorIndex(input.items, decodeThreadHistoryCursor(input.cursor));
+  const anchorIndex = findCursorEndIndex(input.items, decodeThreadHistoryCursor(input.cursor));
   const targetIndex = input.items.findIndex(
     (row) => (row.item.messageId ?? row.item.id) === input.throughEntryId,
   );
@@ -456,7 +461,7 @@ export function selectHistoryPageFromCursor<Row extends HistoryRow>(input: {
   const decoded = decodeThreadHistoryCursor(input.cursor);
   return selectOlderTimelinePage({
     items: input.items,
-    exclusiveEndIndex: findCursorIndex(input.items, decoded),
+    exclusiveEndIndex: findCursorEndIndex(input.items, decoded),
     snapshotSequence: input.snapshotSequence,
     ...(input.rowEncodedBytes === undefined ? {} : { rowEncodedBytes: input.rowEncodedBytes }),
     policy: olderHistoryPagePolicy(input),

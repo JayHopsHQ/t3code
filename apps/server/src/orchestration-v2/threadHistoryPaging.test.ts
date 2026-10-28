@@ -15,10 +15,12 @@ import {
   deferWorkHistoryRows,
   boundedTimelineEncodedBytes,
   computeLatestLocalTurnOrdinal,
+  decodeThreadHistoryCursor,
   encodeThreadHistoryCursor,
   projectedRowBoundedSnapshotEncodedBytes,
   projectedRowEncodedBytes,
   selectHistoryPageFromCursor,
+  selectDeferredWorkPage,
   selectRecentTimelineWindow,
   THREAD_HISTORY_PAGE_POLICY,
 } from "./threadHistoryPaging.ts";
@@ -168,7 +170,9 @@ describe("threadHistoryPaging", () => {
       item: { ...makeRow(index).item, runId: RUN, runStatus: "completed" },
     }));
     expect(deferWorkHistoryRows(longWork.slice(0, 150), 150)).toHaveLength(150);
-    expect(deferWorkHistoryRows(longWork, 150)[0]?.item.deferredWork?.itemCount).toBe(151);
+    const deferredLongWork = deferWorkHistoryRows(longWork, 150)[0]!.item.deferredWork!;
+    expect(deferredLongWork.itemCount).toBe(151);
+    expect(decodeThreadHistoryCursor(deferredLongWork.cursor).p).toBe(151);
     const superseded = work.map((row) => ({
       ...row,
       item: { ...row.item, runStatus: "running", attemptId: "old", attemptStatus: "superseded" },
@@ -481,6 +485,27 @@ describe("threadHistoryPaging", () => {
       snapshotSequence: 3,
     });
     expect(middle.items.map((row) => row.sourceItemId)).toEqual(["item-0", "item-10"]);
+    const work = Array.from({ length: 80 }, (_, index) => {
+      const row = makeRow(index);
+      return { ...row, item: { ...row.item, runId: RUN, ordinal: index + 100 } };
+    });
+    const tail = work[75]!;
+    const deferred = selectDeferredWorkPage({
+      items: work.filter((row) => row !== tail).map((row, position) => ({ ...row, position })),
+      cursor: encodeThreadHistoryCursor({
+        snapshotSequence: 3,
+        sourceThreadId: THREAD,
+        sourceItemId: tail.sourceItemId,
+        position: tail.item.ordinal,
+        inclusive: true,
+      }),
+      throughEntryId: work[0]!.sourceItemId,
+      snapshotSequence: 3,
+    });
+    expect(deferred.items.map((row) => row.sourceItemId)).toEqual(
+      work.slice(0, 75).map((row) => row.sourceItemId),
+    );
+    expect(deferred.nextCursor).toBeNull();
   });
 
   it("keeps cursor resolution stable when newer items append", () => {
