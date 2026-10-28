@@ -103,7 +103,11 @@ import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../termina
 import { isMacPlatform } from "~/lib/utils";
 import { readLocalApi } from "../localApi";
 import { useSidebarPendingFileDropStore } from "../sidebarPendingFileDropStore";
-import { selectProjectGroupingSettings } from "@t3tools/client-runtime/state/project-grouping";
+import {
+  selectProjectGroupingSettings,
+  groupSidebarItemsByDevice,
+} from "@t3tools/client-runtime/state/project-grouping";
+import { EnvironmentMachineIcon } from "./EnvironmentMachineIcon";
 import {
   projectGroupsSpanEnvironments,
   resolveSidebarProjectScopeKeys,
@@ -888,6 +892,8 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   const confirmThreadArchive = useClientSettings((s) => s.confirmThreadArchive);
   const timestampFormat = useClientSettings((s) => s.timestampFormat);
   const projectGroupingSettings = useClientSettings(selectProjectGroupingSettings);
+  const groupByDevice = useClientSettings((s) => s.sidebarGroupByDevice);
+  const showDeviceNames = useClientSettings((s) => s.sidebarShowDeviceNames);
   const {
     settleThread,
     unsettleThread,
@@ -1275,11 +1281,12 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     threads,
     delegatedUnderParent,
     routeRowThreadKey,
-    folderGroups: boringSidebarEnabled
-      ? scopedProjectGroups.length === 0
-        ? projectGroups
-        : scopedProjectGroups
-      : null,
+    folderGroups:
+      boringSidebarEnabled && !groupByDevice
+        ? scopedProjectGroups.length === 0
+          ? projectGroups
+          : scopedProjectGroups
+        : null,
     keepEmptyFolders: scopedProjectGroups.length > 0,
   });
 
@@ -1847,7 +1854,14 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       list: readonly EnvironmentThreadShell[],
       section: SidebarSection,
     ): SidebarListItem[] =>
-      list.map((thread) => {
+      (groupByDevice
+        ? groupSidebarItemsByDevice(
+            list,
+            (thread) => thread.environmentId,
+            environmentLabelById,
+          ).flatMap((group) => group.items)
+        : list
+      ).map((thread) => {
         const key = scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id));
         return { kind: "thread", key, section };
       });
@@ -3103,6 +3117,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                         isHighlighted={activeSearchResultIndex === index}
                         isRouteActive={routeRowThreadKey === threadKey}
                         resultId={threadSearchResultId(index)}
+                        showDeviceName={showDeviceNames || groupByDevice}
                         searchMatch={
                           threadSearchMatchByKey.get(
                             threadSearchMatchKey({
@@ -3237,6 +3252,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                               environmentMachineById.get(thread.environmentId) ?? "server"
                             }
                             scratchMachineLabel={scratchMachineLabelFor(thread)}
+                            showDeviceName={showDeviceNames}
                             project={
                               projectByKey.get(`${thread.environmentId}:${thread.projectId}`) ??
                               null
@@ -3283,11 +3299,35 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                           onDraftContextMenu={handleDraftContextMenu}
                         />,
                       ];
+                      let deviceGroupKey: string | null = null;
                       for (const item of sidebarListItems) {
                         if (item.kind === "thread") {
                           // Folders draw active rows in their own place below.
                           if (projectFolders !== null && item.section === "active") continue;
-                          items.push(renderThreadRow(threadByKey.get(item.key)!, item.section));
+                          const thread = threadByKey.get(item.key)!;
+                          const nextDeviceGroupKey = `${item.section}:${thread.environmentId}`;
+                          if (groupByDevice && deviceGroupKey !== nextDeviceGroupKey) {
+                            items.push(
+                              <li
+                                key={`device:${nextDeviceGroupKey}`}
+                                className="flex items-center gap-2 px-2 pt-3 pb-1 text-xs font-medium text-sidebar-muted-foreground"
+                              >
+                                <EnvironmentMachineIcon
+                                  kind={
+                                    environmentMachineById.get(thread.environmentId) ?? "server"
+                                  }
+                                  className="size-3 shrink-0"
+                                  aria-hidden
+                                />
+                                <span className="truncate">
+                                  {environmentLabelById.get(thread.environmentId) ||
+                                    thread.environmentId}
+                                </span>
+                              </li>,
+                            );
+                          }
+                          deviceGroupKey = nextDeviceGroupKey;
+                          items.push(renderThreadRow(thread, item.section));
                           continue;
                         }
                         if (projectFolders !== null && item.marker === "active-placeholder") {

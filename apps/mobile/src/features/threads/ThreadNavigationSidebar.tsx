@@ -1,3 +1,5 @@
+import { AsyncResult } from "effect/reactivity";
+import { mobilePreferencesAtom } from "../../state/preferences";
 import { useActiveNewTask } from "../../state/active-new-task";
 import { ThreadUndoNotice } from "../home/ThreadUndoNotice";
 import { useAndroidControlSizing } from "../../components/ui/useAndroidControlSizing";
@@ -75,6 +77,7 @@ import {
 import { useThreadRowProviderInstanceResolver } from "./thread-provider-instance";
 import type { ThreadPrPresentation } from "../../state/thread-pr-presentation";
 import {
+  groupThreadListItemsByDevice,
   isThreadListV2ListItem,
   threadListV2ListItemsAreEqual,
   THREAD_LIST_V2_SETTLED_INITIAL_COUNT,
@@ -86,6 +89,7 @@ import { NativeScrollView } from "../../native/NativeScrollViewMarker";
 
 type SidebarListItem =
   | ThreadListV2ListItem
+  | { readonly type: "v2-device-heading"; readonly key: string; readonly label: string }
   | {
       readonly type: "v2-show-more";
       readonly key: string;
@@ -146,6 +150,11 @@ function ThreadNavigationSidebarPane(
   const { fabClearance, scale, fabSize } = useAndroidControlSizing();
   const enabledTabs = useEnabledNavigationTabs();
   const floatingTabs = floatingTabsMetrics(enabledTabs.length + 1, scale, fabSize, props.width);
+  const preferences = useAtomValue(mobilePreferencesAtom);
+  const groupByDevice =
+    AsyncResult.isSuccess(preferences) && preferences.value.sidebarGroupByDevice === true;
+  const showDeviceNames =
+    AsyncResult.isSuccess(preferences) && preferences.value.sidebarShowDeviceNames === true;
   const projects = useProjects();
   const threads = useNavigationThreadShells();
   const { environments: workspaceEnvironments, state: catalogState } = useWorkspaceState();
@@ -317,7 +326,7 @@ function ThreadNavigationSidebarPane(
     settledShelfExpanded,
     selectedThreadKey: props.selectedThreadKey ?? null,
   });
-  const listItems: readonly SidebarListItem[] =
+  const ungroupedListItems: readonly SidebarListItem[] =
     settledShelfExpanded && threadListV2Layout.hiddenSettledCount > 0
       ? [
           ...threadListV2Items,
@@ -333,6 +342,16 @@ function ThreadNavigationSidebarPane(
           },
         ]
       : threadListV2Items;
+  const deviceLabels = new Map(
+    environments.map((environment) => [environment.environmentId as string, environment.label]),
+  );
+  const groupedThreadItems = groupByDevice
+    ? groupThreadListItemsByDevice(threadListV2Items, deviceLabels)
+    : threadListV2Items;
+  const listItems: readonly SidebarListItem[] = [
+    ...groupedThreadItems,
+    ...ungroupedListItems.slice(threadListV2Items.length),
+  ];
   const listMenuActions = [
     {
       id: "environment",
@@ -469,6 +488,7 @@ function ThreadNavigationSidebarPane(
     listEnvironments,
     threadSearchMatchByKey,
     workingShelfEnabled,
+    showDeviceNames,
   };
   useThreadJumpShortcuts(listItems, handleSelectThread);
   const sidebarItemsAreEqual = (previous: SidebarListItem, item: SidebarListItem): boolean => {
@@ -500,6 +520,15 @@ function ThreadNavigationSidebarPane(
   useHardwareKeyboardCommand("focusSearch", focusSearch);
   const renderListItem = ({ item }: { readonly item: SidebarListItem }) => {
     switch (item.type) {
+      case "v2-device-heading":
+        return (
+          <Text
+            accessibilityRole="header"
+            className="px-3 pt-3 pb-1 text-xs font-semibold text-foreground-muted"
+          >
+            {item.label}
+          </Text>
+        );
       case "v2-pending": {
         const pendingScopeKey = scopedProjectKey(
           item.pendingTask.environmentId,
@@ -519,7 +548,7 @@ function ThreadNavigationSidebarPane(
             project={projectByKey.get(pendingScopeKey) ?? null}
             projectTitle={projectTitleByProjectKey.get(pendingScopeKey)}
             environmentLabel={
-              Object.keys(savedConnectionsById).length > 1
+              showDeviceNames || Object.keys(savedConnectionsById).length > 1
                 ? (savedConnectionsById[item.pendingTask.environmentId]?.environmentLabel ?? null)
                 : null
             }
@@ -554,7 +583,7 @@ function ThreadNavigationSidebarPane(
             providerInstance={resolveProviderInstance(thread)}
             providers={providersByEnvironmentId.get(thread.environmentId)}
             environmentLabel={
-              Object.keys(savedConnectionsById).length > 1
+              showDeviceNames || Object.keys(savedConnectionsById).length > 1
                 ? (savedConnectionsById[thread.environmentId]?.environmentLabel ?? null)
                 : null
             }

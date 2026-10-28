@@ -115,6 +115,8 @@ export interface Preferences {
   readonly projectGroupingEnabled?: boolean;
   readonly projectGroupingMode?: SidebarProjectGroupingMode;
   readonly planModeEnabled?: boolean;
+  readonly sidebarGroupByDevice?: boolean;
+  readonly sidebarShowDeviceNames?: boolean;
   readonly workingShelfEnabled?: boolean;
   readonly useLastProjectForNewThreads?: boolean;
   readonly lastThreadProject?: typeof ThreadProject.Type;
@@ -195,6 +197,8 @@ function sanitizePreferences(parsed: Preferences): Preferences {
     projectGroupingEnabled?: boolean;
     projectGroupingMode?: SidebarProjectGroupingMode;
     planModeEnabled?: boolean;
+    sidebarGroupByDevice?: boolean;
+    sidebarShowDeviceNames?: boolean;
     workingShelfEnabled?: boolean;
     useLastProjectForNewThreads?: boolean;
     lastThreadProject?: typeof ThreadProject.Type;
@@ -320,6 +324,12 @@ function sanitizePreferences(parsed: Preferences): Preferences {
   }
   if (typeof parsed.planModeEnabled === "boolean") {
     preferences.planModeEnabled = parsed.planModeEnabled;
+  }
+  if (typeof parsed.sidebarGroupByDevice === "boolean") {
+    preferences.sidebarGroupByDevice = parsed.sidebarGroupByDevice;
+  }
+  if (typeof parsed.sidebarShowDeviceNames === "boolean") {
+    preferences.sidebarShowDeviceNames = parsed.sidebarShowDeviceNames;
   }
   if (typeof parsed.workingShelfEnabled === "boolean") {
     preferences.workingShelfEnabled = parsed.workingShelfEnabled;

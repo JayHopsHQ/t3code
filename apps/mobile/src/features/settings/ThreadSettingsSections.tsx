@@ -179,6 +179,22 @@ export function WorkingSectionSettings() {
     <View className="gap-3">
       <SettingsSection title="Sidebar">
         <SettingsSwitchRow
+          icon="desktopcomputer"
+          label="Group by device"
+          value={
+            AsyncResult.isSuccess(preferences) && preferences.value.sidebarGroupByDevice === true
+          }
+          onValueChange={(value) => savePreferences({ sidebarGroupByDevice: value })}
+        />
+        <SettingsSwitchRow
+          icon="tag"
+          label="Always show device names"
+          value={
+            AsyncResult.isSuccess(preferences) && preferences.value.sidebarShowDeviceNames === true
+          }
+          onValueChange={(value) => savePreferences({ sidebarShowDeviceNames: value })}
+        />
+        <SettingsSwitchRow
           icon="bolt.circle"
           label="Working section"
           value={workingShelfEnabled}

@@ -31,6 +31,7 @@ import type { PendingNewTask } from "../../state/use-pending-new-tasks";
 import { makeRawThreadShell, makeThreadShellFixture } from "../../test-fixtures";
 import { threadJumpTarget } from "../keyboard/threadKeyboardShortcuts";
 import {
+  groupThreadListItemsByDevice,
   buildThreadListV2Items,
   buildThreadListV2ListItems,
   getThreadListV2OrderedSection,
@@ -1717,5 +1718,70 @@ describe("Working section beta", () => {
       "v2-settled-shelf",
       "settled",
     ]);
+  });
+});
+
+describe("mobile sidebar device grouping", () => {
+  it("keeps pins and shelves in place and skips device headings for keyboard jumps", () => {
+    const other = EnvironmentId.make("other");
+    const threads = [
+      makeThread({
+        id: ThreadId.make("pin"),
+        title: "Pinned",
+        environmentId: other,
+        pinnedAt: NOW,
+        pinOrderKey: "a",
+      }),
+      makeThread({ id: ThreadId.make("local"), title: "Local" }),
+      makeThread({ id: ThreadId.make("remote"), title: "Remote", environmentId: other }),
+      makeThread({
+        id: ThreadId.make("settled"),
+        title: "Settled",
+        settledOverride: "settled",
+        settledAt: NOW,
+      }),
+    ];
+    const layout = buildThreadListV2Items({
+      threads,
+      environmentId: null,
+      searchQuery: "",
+      now: NOW,
+    });
+    const items = buildThreadListV2ListItems({
+      items: layout.items,
+      pendingTasks: [],
+      settledCount: layout.settledCount,
+      settledShelfHeaderIndex: layout.settledShelfHeaderIndex,
+    });
+    const grouped = groupThreadListItemsByDevice(
+      items,
+      new Map([
+        [other, "Codebox"],
+        [environmentId, "MacBook"],
+      ]),
+    );
+    expect(
+      grouped.map((item) =>
+        item.type === "v2-device-heading"
+          ? item.label
+          : item.type === "v2-thread"
+            ? item.item.thread.id
+            : item.type,
+      ),
+    ).toEqual([
+      "Codebox",
+      "pin",
+      "Codebox",
+      "remote",
+      "MacBook",
+      "local",
+      "v2-settled-shelf",
+      "MacBook",
+      "settled",
+    ]);
+    expect(threadJumpTarget(grouped, "thread.jump.1")?.id).toBe("pin");
+    expect(threadJumpTarget(grouped, "thread.jump.2")?.id).toBe("remote");
+    expect(threadJumpTarget(grouped, "thread.jump.4")?.id).toBe("settled");
+    expect(items.filter((item) => item.type === "v2-thread")).toHaveLength(4);
   });
 });

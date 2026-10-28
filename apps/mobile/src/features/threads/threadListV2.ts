@@ -1,3 +1,4 @@
+import { groupSidebarItemsByDevice } from "@t3tools/client-runtime/state/project-grouping";
 import {
   canSnooze,
   effectiveSnoozed,
@@ -862,4 +863,43 @@ export function buildThreadListV2Items(input: {
     nextSnoozeWakeAt,
     contentOnlyThreadKeys,
   };
+}
+
+export function groupThreadListItemsByDevice(
+  items: readonly ThreadListV2ListItem[],
+  labels: ReadonlyMap<string, string>,
+): Array<ThreadListV2ListItem | { type: "v2-device-heading"; key: string; label: string }> {
+  const result: Array<
+    ThreadListV2ListItem | { type: "v2-device-heading"; key: string; label: string }
+  > = [];
+  let rows: Array<ThreadListV2ThreadListItem | ThreadListV2PendingListItem> = [];
+  let section: string | null = null;
+  const flush = () => {
+    for (const group of groupSidebarItemsByDevice(
+      rows,
+      (row) =>
+        row.type === "v2-thread" ? row.item.thread.environmentId : row.pendingTask.environmentId,
+      labels,
+    )) {
+      result.push(
+        { type: "v2-device-heading", key: `device:${group.items[0]!.key}`, label: group.label },
+        ...group.items,
+      );
+    }
+    rows = [];
+  };
+  for (const item of items) {
+    if (item.type === "v2-thread" || item.type === "v2-pending") {
+      const nextSection =
+        item.type === "v2-pending" ? "pending" : item.item.pinned ? "pinned" : "threads";
+      if (section !== nextSection) flush();
+      section = nextSection;
+      rows.push(item);
+    } else {
+      flush();
+      result.push(item);
+    }
+  }
+  flush();
+  return result;
 }

@@ -427,6 +427,12 @@ export function useSettingsRestore(onRestored?: () => void) {
     ...(settings.sidebarProjectSortOrder !== DEFAULT_UNIFIED_SETTINGS.sidebarProjectSortOrder
       ? ["Project order"]
       : []),
+    ...(settings.sidebarGroupByDevice !== DEFAULT_UNIFIED_SETTINGS.sidebarGroupByDevice
+      ? ["Group by device"]
+      : []),
+    ...(settings.sidebarShowDeviceNames !== DEFAULT_UNIFIED_SETTINGS.sidebarShowDeviceNames
+      ? ["Show device names"]
+      : []),
     ...(settings.sidebarWorkingShelfEnabled !== DEFAULT_UNIFIED_SETTINGS.sidebarWorkingShelfEnabled
       ? ["Working section"]
       : []),
@@ -598,6 +604,8 @@ export function useSettingsRestore(onRestored?: () => void) {
       panelAnimationDurationMs: DEFAULT_UNIFIED_SETTINGS.panelAnimationDurationMs,
       sidebarProjectGroupingMode: DEFAULT_UNIFIED_SETTINGS.sidebarProjectGroupingMode,
       sidebarProjectSortOrder: DEFAULT_UNIFIED_SETTINGS.sidebarProjectSortOrder,
+      sidebarGroupByDevice: DEFAULT_UNIFIED_SETTINGS.sidebarGroupByDevice,
+      sidebarShowDeviceNames: DEFAULT_UNIFIED_SETTINGS.sidebarShowDeviceNames,
       sidebarWorkingShelfEnabled: DEFAULT_UNIFIED_SETTINGS.sidebarWorkingShelfEnabled,
       sidebarAutoSettleAfterDays: DEFAULT_UNIFIED_SETTINGS.sidebarAutoSettleAfterDays,
       sidebarAutoSettleKeepPullRequests: DEFAULT_UNIFIED_SETTINGS.sidebarAutoSettleKeepPullRequests,
@@ -753,6 +761,29 @@ export function GeneralSettingsPanel() {
       </SettingsSection>
 
       <SettingsSection id="sidebar" title="Sidebar">
+        <SettingsRow
+          {...searchableSetting("group-by-device")}
+          description="Keep threads from each device together within each sidebar section."
+          control={
+            <Switch
+              checked={settings.sidebarGroupByDevice}
+              onCheckedChange={(checked) => updateSettings({ sidebarGroupByDevice: checked })}
+              aria-label="Group by device"
+            />
+          }
+        />
+        <SettingsRow
+          {...searchableSetting("show-device-names")}
+          description="Show the device on project threads as well as threads without a project."
+          control={
+            <Switch
+              checked={settings.sidebarShowDeviceNames}
+              onCheckedChange={(checked) => updateSettings({ sidebarShowDeviceNames: checked })}
+              aria-label="Show device names"
+            />
+          }
+        />
+
         <SettingsRow
           {...searchableSetting("project-grouping")}
           description="Combine matching repositories across environments."

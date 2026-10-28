@@ -49,6 +49,18 @@ in a new thread's model picker to add or remove them. A regular click returns to
 single model. Choose a base branch and send. Each selection starts a separate thread
 and worktree while you stay in the new thread composer. This requires a Git project.
 
+## Identify threads across devices
+
+In **Settings → General → Sidebar**, enable **Group by device** to keep each device's
+threads together within Pinned, active, Working, Snoozed and Settled sections.
+**Show device names** keeps the machine visible beside a thread's branch, even when
+matching repositories share one project name. Search keeps its relevance order and
+shows device names when either option is enabled.
+
+On iOS and Android, the options are under **Settings → General → Sidebar**; device
+names can also be shown when only one device is connected. These preferences change
+the list presentation, not a thread's checkout, branch or runtime configuration.
+
 ## Pin and reorder threads
 
 Pin a thread from its menu to keep it above your active work.

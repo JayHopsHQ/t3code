@@ -384,3 +384,23 @@ export function sortProjectsByGroupOrder<
     rankByProject.get(`${project.environmentId}\0${project.id}`) ?? groups.length;
   return [...projects].sort((left, right) => rankOf(left) - rankOf(right));
 }
+
+export function groupSidebarItemsByDevice<T>(
+  items: readonly T[],
+  environmentOf: (item: T) => string,
+  labels: ReadonlyMap<string, string>,
+): Array<{ environmentId: string; label: string; items: T[] }> {
+  const groups = new Map<string, { environmentId: string; label: string; items: T[] }>();
+  for (const item of items) {
+    const environmentId = environmentOf(item);
+    let group = groups.get(environmentId);
+    if (!group) {
+      group = { environmentId, label: labels.get(environmentId) || environmentId, items: [] };
+      groups.set(environmentId, group);
+    }
+    group.items.push(item);
+  }
+  return [...groups.values()].sort(
+    (a, b) => a.label.localeCompare(b.label) || a.environmentId.localeCompare(b.environmentId),
+  );
+}

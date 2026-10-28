@@ -370,3 +370,22 @@ describe("server model preferences", () => {
     expect(decodeServerSettingsPatch(input)).toEqual(input);
   });
 });
+
+describe("sidebar device preferences", () => {
+  it("keeps old clients' layout by default and persists independent device options", () => {
+    const settings = decodeClientSettings({});
+    expect(settings.sidebarGroupByDevice).toBe(false);
+    expect(settings.sidebarShowDeviceNames).toBe(false);
+    const patch = decodeClientSettingsPatch({
+      sidebarGroupByDevice: true,
+      sidebarShowDeviceNames: true,
+    });
+    expect(decodeClientSettings({ ...encodeClientSettings(settings), ...patch })).toMatchObject({
+      sidebarGroupByDevice: true,
+      sidebarShowDeviceNames: true,
+    });
+    expect(decodeClientSettingsPatch({ sidebarGroupByDevice: false })).toEqual({
+      sidebarGroupByDevice: false,
+    });
+  });
+});

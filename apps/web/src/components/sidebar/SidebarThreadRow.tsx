@@ -559,6 +559,7 @@ type SidebarThreadRowProps = {
   environmentLabel: string | null;
   environmentMachine: EnvironmentMachineKind;
   scratchMachineLabel: string | null;
+  showDeviceName?: boolean;
   project: EnvironmentProject | null;
   projectDisplayName: string | null;
   providerEntryByInstanceId: ReadonlyMap<string, SidebarProviderEntry>;
@@ -798,7 +799,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     : thread.modelSelection.model;
 
   const isRemote = thread.environmentId !== props.currentEnvironmentId;
-  const showsScratchMachine = !thread.branch && props.scratchMachineLabel !== null;
+  const deviceLabel = props.showDeviceName ? props.environmentLabel : props.scratchMachineLabel;
+  const showsScratchMachine = !thread.branch && deviceLabel !== null;
 
   const detailsTooltip = (
     <SidebarThreadTooltip
@@ -1176,6 +1178,11 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
             {draftIndicator}
             {title}
             {pinIndicator}
+            {props.showDeviceName && props.environmentLabel ? (
+              <span className="max-w-1/3 truncate text-xs text-muted-foreground/60">
+                {props.environmentLabel}
+              </span>
+            ) : null}
             {terminalStatusIcon}
             {isRegeneratingTitle ? (
               <span role="status" className="sr-only">
@@ -1527,11 +1534,21 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                       kind={props.environmentMachine}
                       className="size-3 shrink-0"
                     />
-                    <span className="min-w-0 flex-1 truncate">{props.scratchMachineLabel}</span>
+                    <span className="min-w-0 flex-1 truncate">{deviceLabel}</span>
                   </>
                 ) : (
                   <span className="flex-1" />
                 )}
+                {thread.branch && props.showDeviceName && props.environmentLabel ? (
+                  <span className="inline-flex max-w-1/2 min-w-0 items-center gap-1 text-muted-foreground/60">
+                    <EnvironmentMachineIcon
+                      aria-hidden
+                      kind={props.environmentMachine}
+                      className="size-3 shrink-0"
+                    />
+                    <span className="truncate">{props.environmentLabel}</span>
+                  </span>
+                ) : null}
                 {terminalStatusIcon}
                 {prBadge}
                 {diff ? (
@@ -1598,6 +1615,7 @@ export const SidebarSearchResultRow = memo(function SidebarSearchResultRow(props
   isHighlighted: boolean;
   isRouteActive: boolean;
   resultId: string;
+  showDeviceName?: boolean;
   searchMatch: EnvironmentThreadSearchMatch | null;
   searchQuery: string;
   /** The query `searchMatch` was found for, which lags `searchQuery` while a search runs. */
@@ -1733,6 +1751,16 @@ export const SidebarSearchResultRow = memo(function SidebarSearchResultRow(props
                 <RelativeTimeLabel timestamp={threadTimeTimestamp(thread)} />
               </span>
             </span>
+            {props.showDeviceName && props.environmentLabel ? (
+              <span className="inline-flex min-w-0 items-center gap-1 text-xs text-muted-foreground/60">
+                <EnvironmentMachineIcon
+                  aria-hidden
+                  kind={props.environmentMachine}
+                  className="size-3 shrink-0"
+                />
+                <span className="truncate">{props.environmentLabel}</span>
+              </span>
+            ) : null}
             {props.searchMatch ? (
               <ThreadSearchMatchExcerpt
                 match={{

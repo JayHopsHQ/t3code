@@ -340,6 +340,14 @@ jobs:
           vp run --filter @t3tools/web build
           node apps/web/scripts/verify-built-boot.ts
 
+      - name: Upload sidebar device screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: sidebar-device-screenshots
+          path: .t3/device-*.png
+          if-no-files-found: ignore
+
   # apps/server sets `fileParallelism: false`, so its test files run strictly
   # one at a time. Sharding spreads them over separate runners instead of
   # separate workers, so no two server test files ever share a machine and the

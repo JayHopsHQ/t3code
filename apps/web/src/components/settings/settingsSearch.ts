@@ -388,6 +388,18 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["combine matching repositories environments sidebar"],
   },
   {
+    id: "group-by-device",
+    title: "Group by device",
+    to: "/settings/general",
+    searchTerms: ["machine environment sidebar"],
+  },
+  {
+    id: "show-device-names",
+    title: "Show device names",
+    to: "/settings/general",
+    searchTerms: ["machine environment sidebar"],
+  },
+  {
     id: "project-order",
     title: "Project order",
     to: "/settings/general",
