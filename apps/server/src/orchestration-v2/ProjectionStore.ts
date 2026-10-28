@@ -2849,6 +2849,10 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
                   SELECT DISTINCT run_id FROM orchestration_v2_projection_turn_items
                   WHERE thread_id = ${threadId} AND run_id IS NOT NULL
                     AND ${window.deferWork ? 1 : 0} = 1
+                    AND run_id IN (
+                      SELECT run_id FROM eligible
+                      WHERE ordinal >= ${boundary.ordinal} AND run_id IS NOT NULL
+                    )
                     AND (type IN ('run_interrupt_request', 'run_interrupt_result')
                       OR (type = 'error' AND status = 'failed' AND parent_item_id IS NULL))
                 ), work_segments AS (

@@ -1984,11 +1984,29 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
         payload_json = json_set(payload_json, '$.ordinal', 1000)
         WHERE thread_id = ${threadId} AND ordinal = 999`;
       const promptId = TurnItemId.make("turn-item:bounded-sql-history:1");
-      const deferred = yield* projectionStore.getThreadSnapshotWindow(threadId, {
-        rowLimit: sqlPageLimit,
-        userTurnLimit: 10,
-        deferWork: true,
-      });
+      const { statements: deferredStatements, tracer: deferredTracer } = traceSqlStatements();
+      const deferred = yield* projectionStore
+        .getThreadSnapshotWindow(threadId, {
+          rowLimit: sqlPageLimit,
+          userTurnLimit: 10,
+          deferWork: true,
+        })
+        .pipe(Effect.withTracer(deferredTracer));
+      const deferredQuery = deferredStatements.find((statement) =>
+        statement.includes("blocked_runs AS MATERIALIZED"),
+      );
+      assert.isDefined(deferredQuery);
+      const deferredPlan = yield* sql.unsafe<{
+        readonly id: number;
+        readonly parent: number;
+        readonly detail: string;
+      }>(`EXPLAIN QUERY PLAN ${deferredQuery}`);
+      const blockedRunsPlan = deferredPlan.find((row) => row.detail === "MATERIALIZE blocked_runs");
+      assert.isDefined(blockedRunsPlan);
+      const blockedLookup = deferredPlan.find(
+        (row) => row.parent === blockedRunsPlan!.id && row.detail.startsWith("SEARCH "),
+      );
+      assert.include(blockedLookup?.detail ?? "", "run_id=?");
       assert.lengthOf(deferred.projection.visibleTurnItems, 3);
       assert.strictEqual(deferred.projection.visibleTurnItems[0]?.sourceItemId, promptId);
       const anchor = deferred.projection.visibleTurnItems[1]!;
