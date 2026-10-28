@@ -2017,7 +2017,6 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
           rowLimit: sqlPageLimit,
           userTurnLimit: 10,
           deferWork: true,
-          inlineWorkItemLimit: 150,
         });
         assert.isUndefined(
           window.projection.visibleTurnItems.find((row) => row.item.ordinal === 2)?.item
@@ -2038,7 +2037,6 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
           undefined,
           false,
           "deferred",
-          150,
         );
         assert.isUndefined(page.items.find((row) => row.item.ordinal === 2)?.item.deferredWork);
       }
@@ -2078,7 +2076,6 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
           rowLimit: sqlPageLimit,
           userTurnLimit: 10,
           deferWork: true,
-          inlineWorkItemLimit: 150,
         });
         const oldWork = window.projection.visibleTurnItems.find((row) => row.item.deferredWork);
         assert.strictEqual(oldWork?.item.deferredWork?.itemCount, 987);
@@ -2108,20 +2105,25 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
       yield* sql`UPDATE orchestration_v2_projection_turn_items SET run_id = NULL,
         payload_json = json_set(payload_json, '$.runId', NULL)
         WHERE thread_id = ${threadId} AND ordinal > 1 AND ordinal < 851`;
-      for (const inlineWorkItemLimit of [75, 150]) {
-        const window = yield* projectionStore.getThreadSnapshotWindow(threadId, {
-          rowLimit: sqlPageLimit,
-          userTurnLimit: 10,
-          deferWork: true,
-          inlineWorkItemLimit,
-        });
-        assert.strictEqual(
-          window.projection.visibleTurnItems.some(
-            (row) => row.item.deferredWork?.itemCount === 150,
-          ),
-          inlineWorkItemLimit === 75,
-        );
-      }
+      const inlineWindow = yield* projectionStore.getThreadSnapshotWindow(threadId, {
+        rowLimit: sqlPageLimit,
+        userTurnLimit: 10,
+        deferWork: true,
+      });
+      assert.isFalse(inlineWindow.projection.visibleTurnItems.some((row) => row.item.deferredWork));
+      yield* sql`UPDATE orchestration_v2_projection_turn_items SET run_id = ${sharedRunId},
+        payload_json = json_set(payload_json, '$.runId', ${sharedRunId})
+        WHERE thread_id = ${threadId} AND ordinal = 850`;
+      const deferredWindow = yield* projectionStore.getThreadSnapshotWindow(threadId, {
+        rowLimit: sqlPageLimit,
+        userTurnLimit: 10,
+        deferWork: true,
+      });
+      assert.isTrue(
+        deferredWindow.projection.visibleTurnItems.some(
+          (row) => row.item.deferredWork?.itemCount === 151,
+        ),
+      );
       yield* sql`UPDATE orchestration_v2_projection_turn_items
         SET run_id = 'run:bounded-sql-history:1',
           payload_json = json_set(payload_json, '$.runId', 'run:bounded-sql-history:1')

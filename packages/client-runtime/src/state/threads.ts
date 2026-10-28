@@ -38,10 +38,7 @@ import { applyOrchestrationV2ProjectionEvent } from "./orchestrationV2Projection
 import { THREAD_SNAPSHOT_IDLE_TTL_MS } from "./threadRetention.ts";
 import { followStreamInEnvironment } from "./runtime.ts";
 import * as ThreadHistoryController from "./threadHistoryController.ts";
-import {
-  clientInlineWorkItemLimit,
-  fetchEnvironmentThreadHistoryPage,
-} from "./threadHistoryHttp.ts";
+import { fetchEnvironmentThreadHistoryPage } from "./threadHistoryHttp.ts";
 import {
   applyHistoryPageMeta,
   clearActiveHistoryLoading,
@@ -196,7 +193,6 @@ export const makeEnvironmentThreadState = Effect.fn("EnvironmentThreadState.make
   resumeCache?: ThreadResumeCache,
 ) {
   const supervisor = yield* EnvironmentSupervisor.EnvironmentSupervisor;
-  const inlineWorkItemLimit = yield* clientInlineWorkItemLimit;
   const cache = yield* Persistence.EnvironmentCacheStore;
   const snapshotLoader = yield* ThreadSnapshotLoader.ThreadSnapshotLoader;
   const historyController = yield* Effect.serviceOption(
@@ -1017,7 +1013,6 @@ export const makeEnvironmentThreadState = Effect.fn("EnvironmentThreadState.make
             ? {
                 acceptBoundedSnapshot: true as const,
                 acceptDeferredWork: true as const,
-                inlineWorkItemLimit,
                 acceptCompactTurnItems: true as const,
                 acceptCompactIds: true as const,
               }

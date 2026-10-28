@@ -19,6 +19,8 @@ export const THREAD_HISTORY_PAGE_POLICY = {
   maxEncodedBytes: 1_048_576,
 } as const;
 
+export const THREAD_HISTORY_INLINE_WORK_ITEM_LIMIT = 150;
+
 export const OLDER_THREAD_USER_TURN_LIMIT = 20;
 
 export function isConversationHistoryItem(item: Pick<OrchestrationV2TurnItem, "type">): boolean {
@@ -196,10 +198,7 @@ function isDeferrableWorkItem(item: HistoryRow["item"]): boolean {
   );
 }
 
-export function deferWorkHistoryRows<Row extends HistoryRow>(
-  items: ReadonlyArray<Row>,
-  inlineWorkItemLimit: number = THREAD_HISTORY_PAGE_POLICY.maxItems,
-): Row[] {
+export function deferWorkHistoryRows<Row extends HistoryRow>(items: ReadonlyArray<Row>): Row[] {
   const blocked = new Set(
     items.flatMap(({ item }) =>
       item.runId != null &&
@@ -230,7 +229,7 @@ export function deferWorkHistoryRows<Row extends HistoryRow>(
   const omitted = new Set<Row>();
   const anchors = new Map<Row, Row>();
   for (const group of groups.values()) {
-    if (group.length <= inlineWorkItemLimit) continue;
+    if (group.length <= THREAD_HISTORY_INLINE_WORK_ITEM_LIMIT) continue;
     const first = group[0]!;
     const last = group.at(-1)!;
     for (const row of group.slice(1)) omitted.add(row);

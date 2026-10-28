@@ -158,21 +158,15 @@ function makeProjection(visibleTurnItems: OrchestrationV2ProjectedTurnItem[]) {
 }
 
 describe("threadHistoryPaging", () => {
-  it("defers completed work above the client limit and keeps conversation and persistent rows", () => {
-    const work = Array.from({ length: 76 }, (_, index) => {
+  it("defers completed work above 150 items and keeps conversation and persistent rows", () => {
+    const work = Array.from({ length: 151 }, (_, index) => {
       const row = makeRow(index);
       return { ...row, item: { ...row.item, runId: RUN, runStatus: "completed" } };
     });
-    expect(deferWorkHistoryRows(work.slice(0, 75))).toHaveLength(75);
-    expect(deferWorkHistoryRows(work, 150)).toHaveLength(76);
-    const longWork = Array.from({ length: 151 }, (_, index) => ({
-      ...makeRow(index),
-      item: { ...makeRow(index).item, runId: RUN, runStatus: "completed" },
-    }));
-    expect(deferWorkHistoryRows(longWork.slice(0, 150), 150)).toHaveLength(150);
-    const deferredLongWork = deferWorkHistoryRows(longWork, 150)[0]!.item.deferredWork!;
-    expect(deferredLongWork.itemCount).toBe(151);
-    expect(decodeThreadHistoryCursor(deferredLongWork.cursor).p).toBe(151);
+    expect(deferWorkHistoryRows(work.slice(0, 150))).toHaveLength(150);
+    const deferredWork = deferWorkHistoryRows(work)[0]!.item.deferredWork!;
+    expect(deferredWork.itemCount).toBe(151);
+    expect(decodeThreadHistoryCursor(deferredWork.cursor).p).toBe(151);
     const superseded = work.map((row) => ({
       ...row,
       item: { ...row.item, runStatus: "running", attemptId: "old", attemptStatus: "superseded" },
@@ -184,7 +178,7 @@ describe("threadHistoryPaging", () => {
       item: { ...row.item, runStatus: "running", attemptId: "active", attemptStatus: "running" },
     }));
     const attempts = deferWorkHistoryRows([...superseded, ...active]);
-    expect(attempts[0]?.item.deferredWork?.itemCount).toBe(76);
+    expect(attempts[0]?.item.deferredWork?.itemCount).toBe(151);
     expect(attempts.slice(1)).toEqual(active);
     const compaction = {
       ...work[0]!,
@@ -210,17 +204,17 @@ describe("threadHistoryPaging", () => {
       ...work.slice(30),
     ]);
     expect(deferred.map((row) => row.sourceItemId)).toEqual(["item-0", "compaction", "render"]);
-    expect(deferred[0]?.item.deferredWork?.itemCount).toBe(76);
+    expect(deferred[0]?.item.deferredWork?.itemCount).toBe(151);
     for (const runStatus of ["running", "failed", "interrupted", "cancelled"]) {
       expect(
         deferWorkHistoryRows(work.map((row) => ({ ...row, item: { ...row.item, runStatus } }))),
-      ).toHaveLength(76);
+      ).toHaveLength(151);
     }
     const interrupted = {
       ...compaction,
       item: { ...compaction.item, type: "run_interrupt_result" as const },
     };
-    expect(deferWorkHistoryRows([...work, interrupted])).toHaveLength(77);
+    expect(deferWorkHistoryRows([...work, interrupted])).toHaveLength(152);
     const failed = {
       ...compaction,
       item: {
@@ -231,7 +225,7 @@ describe("threadHistoryPaging", () => {
         parentItemId: null,
       },
     };
-    expect(deferWorkHistoryRows([...work, failed])).toHaveLength(77);
+    expect(deferWorkHistoryRows([...work, failed])).toHaveLength(152);
   });
 
   it("keeps a human turn whole up to the turn row budget and pages a longer one from inside", () => {
